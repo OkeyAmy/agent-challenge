@@ -3,9 +3,10 @@ import { PinoLogger } from "@mastra/loggers";
 import { weatherAgent } from "./agents/weather-agent/weather-agent"; // This can be deleted later
 import { weatherWorkflow } from "./agents/weather-agent/weather-workflow"; // This can be deleted later
 import { yourAgent } from "./agents/your-agent/your-agent"; // Build your agent here
+import { personalAssistantWorkflow } from "./agents/your-agent/your-workflow";
 
 export const mastra = new Mastra({
-	workflows: { weatherWorkflow }, // can be deleted later
+	workflows: { weatherWorkflow, personalAssistantWorkflow }, // can be deleted later
 	agents: { weatherAgent, yourAgent },
 	logger: new PinoLogger({
 		name: "Mastra",
@@ -15,4 +16,6 @@ export const mastra = new Mastra({
 		port: 8080,
 		timeout: 10000,
 	},
+	// Disable telemetry/analytics
+	telemetry: false,
 });
