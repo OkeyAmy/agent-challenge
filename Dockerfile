@@ -1,8 +1,16 @@
 FROM ollama/ollama:0.7.0
 
-# Qwen2.5:1.5b - Docker
-ENV API_BASE_URL=http://127.0.0.1:11434/api
-ENV MODEL_NAME_AT_ENDPOINT=qwen2.5:1.5b
+# Build arguments for environment variables
+ARG GOOGLE_API_KEY
+ARG MODEL_NAME_AT_ENDPOINT=qwen2.5:1.5b
+ARG API_BASE_URL=http://127.0.0.1:11434/api
+ARG RAPIDAPI_KEY
+
+# Set environment variables from build arguments
+ENV GOOGLE_API_KEY=${GOOGLE_API_KEY}
+ENV MODEL_NAME_AT_ENDPOINT=${MODEL_NAME_AT_ENDPOINT}
+ENV API_BASE_URL=${API_BASE_URL}
+ENV RAPIDAPI_KEY=${RAPIDAPI_KEY}
 
 # Qwen2.5:32b = Docker
 # ENV API_BASE_URL=http://127.0.0.1:11434/api
@@ -20,7 +28,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy package files
-COPY .env.docker package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies
 RUN pnpm install

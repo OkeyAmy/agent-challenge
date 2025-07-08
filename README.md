@@ -87,19 +87,63 @@ This agent is designed to excel in all four judging categories:
 
 -   **Innovation:** The combination of persistent memory, a price-optimizing product search, and time-aware meal suggestions creates a uniquely intelligent and practical agent that solves multiple real-world problems.
 -   **Technical Implementation:** The agent demonstrates clean, modular, and well-documented TypeScript code. It uses a robust, file-based persistence layer for memory and integrates with external APIs, showcasing solid engineering.
--   **Nosana Integration:** The agent is ready for deployment on the Nosana network. Its lightweight model and efficient tools make it a perfect candidate for decentralized GPU computing. (Instructions for Dockerization and deployment are included below).
+-   **Nosana Integration:** The agent is ready for deployment on the Nosana network. Its lightweight model and efficient tools make it a perfect candidate for decentralized GPU computing.
 -   **Real-World Impact:** This agent has immediate practical utility. It helps users save money, reduce food waste by planning meals, and streamline their shopping process.
 
-## Dockerization & Nosana Deployment
+## Building and Running with Docker
 
-Follow the official challenge instructions for building, publishing, and deploying your Docker container to the Nosana network.
+To containerize the agent for consistent deployments, including on the Nosana network, follow these steps.
 
-1.  **Build your Docker image:**
+### 1. Set Up Your Environment
+
+Before building the image, you need to provide your API keys in a `.env` file. The Docker build process will use these keys to enable all the agent's features.
+
+-   Copy the example environment file:
     ```sh
-    docker build -t your-dockerhub-username/nosana-agent:latest .
+    cp .env.example .env
     ```
-2.  **Push to Docker Hub:**
+-   Open the newly created `.env` file and add your secret keys. At a minimum, you'll need the `GOOGLE_API_KEY` for the fallback model to work.
+
+### 2. Build the Docker Image
+
+The `Dockerfile` is configured to securely accept your API keys as build arguments. This prevents your secrets from being stored in the final image layers.
+
+Run the following command, which reads your `.env` file and passes the variables to the build process.
+
+**For Linux/macOS:**
+
+```sh
+docker build \
+  --build-arg GOOGLE_API_KEY=$(grep GOOGLE_API_KEY .env | cut -d '=' -f2) \
+  --build-arg RAPIDAPI_KEY=$(grep RAPIDAPI_KEY .env | cut -d '=' -f2) \
+  -t your-dockerhub-username/nosana-agent:latest .
+```
+
+**For Windows (PowerShell):**
+
+```powershell
+docker build `
+  --build-arg GOOGLE_API_KEY=$((Get-Content .env | Select-String "GOOGLE_API_KEY").ToString().Split('=')[1]) `
+  --build-arg RAPIDAPI_KEY=$((Get-Content .env | Select-String "RAPIDAPI_KEY").ToString().Split('=')[1]) `
+  -t your-dockerhub-username/nosana-agent:latest .
+```
+
+> **Note:** Remember to replace `your-dockerhub-username/nosana-agent:latest` with your actual Docker Hub repository name and desired tag.
+
+### 3. Run the Container
+
+Once the image is built, you can run it locally to test it:
+
+```sh
+docker run --rm -it your-dockerhub-username/nosana-agent:latest
+```
+
+### 4. Push to Docker Hub & Deploy on Nosana
+
+After confirming the container runs as expected, push it to Docker Hub and deploy it on the Nosana network.
+
+-   **Push to Docker Hub:**
     ```sh
     docker push your-dockerhub-username/nosana-agent:latest
     ```
-3.  **Deploy on Nosana** using your public Docker image URL.
+-   **Deploy on Nosana** using your public Docker image URL from Docker Hub.
