@@ -25,7 +25,6 @@ yarn-error.log*
 
 # Exclude specific directories and files
 /mise-ai/
-/.github/
 render-deployment-guide.md
 render.yaml
 
