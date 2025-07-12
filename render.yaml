@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: nosana-agent
+    env: docker
+    plan: free
+    autoDeploy: true
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GOOGLE_API_KEY
+        fromSecret: true
+      - key: RAPIDAPI_KEY
+        fromSecret: true
+      - key: DOCKER_BUILDKIT
+        value: 1 

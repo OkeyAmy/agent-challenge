@@ -147,3 +147,26 @@ After confirming the container runs as expected, push it to Docker Hub and deplo
     docker push your-dockerhub-username/nosana-agent:latest
     ```
 -   **Deploy on Nosana** using your public Docker image URL from Docker Hub.
+
+## Deploying to Render
+
+This project is configured for easy deployment on Render using a `render.yaml` file.
+
+### 1. Create a New Blueprint Service
+
+-   Go to the [Render Dashboard](https://dashboard.render.com/) and click **New > Blueprint**.
+-   Connect your GitHub repository.
+-   Render will automatically detect and use the `render.yaml` file.
+
+### 2. Add Your Environment Variables
+
+Your API keys should be stored as secrets in Render, not in your repository.
+
+-   In your Render service dashboard, go to the **Environment** tab.
+-   Under **Secret Files**, create a new secret file with the filename `.env`.
+-   Copy the contents of your local `.env` file (containing your `GOOGLE_API_KEY` and `RAPIDAPI_KEY`) and paste them into the secret file content.
+-   Click **Save Changes**.
+
+### 3. Deploy
+
+Render will automatically trigger a new build and deploy your service. Any future pushes to your main branch will also trigger automatic deployments.
