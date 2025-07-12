@@ -22,3 +22,28 @@ yarn-error.log*
 # IDE files
 .idea/
 .vscode/
+
+# Exclude specific directories and files
+/mise-ai/
+/.github/
+render-deployment-guide.md
+render.yaml
+
+# Lock files
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+bun.lockb
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
