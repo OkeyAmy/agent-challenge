@@ -5,7 +5,7 @@
 ![Agent Banner](./assets/NosanaBuildersChallengeAgents.jpg)
 
 [![Nosana Challenge](https://img.shields.io/badge/Nosana-Builders%20Challenge-orange?style=for-the-badge&logo=blockchain&logoColor=white)](https://nosana.io/challenge)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com)
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-akachiokey/agent--challenge-blue?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/akachiokey/agent-challenge)
 [![Mastra](https://img.shields.io/badge/Powered%20by-Mastra-purple?style=for-the-badge)](https://mastra.ai)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
@@ -341,14 +341,20 @@ docker build \
 docker run -p 8080:8080 your-username/meal-assistant:latest
 ```
 
-**Deploy to Docker Hub:**
+**🚀 Production-Ready Docker Image:**
 ```bash
-# Push to registry
-docker push your-username/meal-assistant:latest
+# Pull the pre-built image
+docker pull akachiokey/agent-challenge:latest
 
-# Deploy anywhere
-docker run -d -p 8080:8080 your-username/meal-assistant:latest
+# Run immediately
+docker run -d -p 8080:8080 akachiokey/agent-challenge:latest
+
+# Or build your own
+docker build -t your-username/agent-challenge:latest .
+docker push your-username/agent-challenge:latest
 ```
+
+**📦 Available on Docker Hub:** [`akachiokey/agent-challenge`](https://hub.docker.com/r/akachiokey/agent-challenge)
 
 ### ☁️ **Cloud Deployment**
 
@@ -380,22 +386,21 @@ docker run -d -p 8080:8080 your-username/meal-assistant:latest
 
 ---
 
-## 🧪 Testing
+## 🧪 Manual Testing
 
 ### 🔬 **Quality Assurance**
 
+Test the agent's capabilities through natural conversation:
+
 ```bash
-# Run all tests
-pnpm test
+# Start the agent
+pnpm run dev
 
-# Test specific features
-pnpm test:memory     # Memory system tests
-pnpm test:shopping   # Shopping list tests
-pnpm test:amazon     # Amazon API tests
-pnpm test:meals      # Meal suggestion tests
-
-# Integration tests
-pnpm test:integration
+# Test core features:
+# 1. Memory: "Remember I'm vegetarian"
+# 2. Shopping: "Add pasta to my shopping list"
+# 3. Amazon: "Find the cheapest olive oil"
+# 4. Meals: "Suggest dinner for tonight"
 ```
 
 ### 📊 **Performance Metrics**
