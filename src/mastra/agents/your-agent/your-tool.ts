@@ -114,11 +114,24 @@ export const shoppingListTool = createTool({
           };
         }
         
+        let addedCount = 0;
         items.forEach(item => {
-          shoppingList.push({
-            ...item,
-            id: Math.random().toString(36).substring(7)
-          });
+          // Check for duplicates (case-insensitive)
+          const existingItem = shoppingList.find(existing => 
+            existing.item.toLowerCase() === item.item.toLowerCase()
+          );
+          
+          if (existingItem) {
+            // Update quantity if item already exists
+            existingItem.quantity += item.quantity;
+          } else {
+            // Add new item if it doesn't exist
+            shoppingList.push({
+              ...item,
+              id: Math.random().toString(36).substring(7)
+            });
+            addedCount++;
+          }
         });
         
         // Generate downloadable CSV content
@@ -127,7 +140,7 @@ export const shoppingListTool = createTool({
         
         return {
           success: true,
-          message: `✅ Added ${items.length} item(s) to your shopping list.\n\n${addDownloadLink}`,
+          message: `✅ Added ${addedCount} new item(s) to your shopping list (duplicates were merged).\n\n${addDownloadLink}`,
           list: shoppingList,
           downloadContent: addDownloadLink
         };

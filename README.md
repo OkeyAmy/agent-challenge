@@ -95,7 +95,7 @@ git clone https://github.com/OkeyAmy/agent-challenge.git
 cd agent-challenge
 
 # 2. Install dependencies (using pnpm for speed)
-pnpm install
+    pnpm install
 
 # 3. Set up environment
 cp .env.example .env
@@ -237,7 +237,7 @@ Create your `.env` file with these essential variables:
 
 ```bash
 # Required for Amazon product search
-RAPIDAPI_KEY=your_rapidapi_key_here
+        RAPIDAPI_KEY=your_rapidapi_key_here
 
 # Optional: Fallback AI model
 GOOGLE_API_KEY=your_google_api_key_here
