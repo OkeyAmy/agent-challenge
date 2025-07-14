@@ -42,6 +42,21 @@
 - **📱 Universal Access**: Works on any device, anywhere
 
 ---
+**Docker Image:** akachiokey/agent-challenge:latest
+
+**Video Demo:** https://www.canva.com/design/DAGtIVo8GPM/-pigEdz-kzPI_eXTFIk9ow/watch?utm_content=DAGtIVo8GPM&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=h460a4ac9fe
+
+**Twitter:** https://x.com/okey_amy/status/1944700274439758114
+
+**Solana address:** 68JLWPU4goGNYSksvLgmwaXLgiDAECP6VBnNdXY87o9z
+
+**Host address:** FsGEa6bQ6b53JSoRuwp2UGN312AayyAfpPzpxJKoHx1x
+
+**Deployer address:** 51oDE6b7zAyb3wVgcV8v6sz7tRuo3zXfzBsvwrWQxhE1
+
+**Nosana Deployment Proof:** https://3rhsztg4iejkungzr2bcpz55lsvpe1redpdvqemxvn2t.node.k8s.prd.nos.ci/
+
+---
 
 ## 📋 Table of Contents
 
