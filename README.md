@@ -1,405 +1,481 @@
-# Nosana x ElizaOS Agent Challenge
+# Relay — Personal AI Command Center
 
-![ElizaOS](./assets/NosanaXEliza.jpg)
+> **Nosana × ElizaOS Agent Challenge** · Deadline: April 14, 2026 · Prize: $3,000 USDC
 
-Build your own **personal AI agent** using [ElizaOS](https://elizaos.com) and deploy it on the [Nosana](https://nosana.com) decentralized compute network. Win a share of **$3,000 USDC** in prizes.
-
----
-
-## The Challenge
-
-Inspired by [OpenClaw](https://openclaw.ai/) — the self-hosted personal AI movement — this challenge is about giving AI back to the individual. Build an agent that runs on **your own infrastructure**, handles **your own tasks**, and keeps **your own data**.
-
-> **Theme: Personal AI Agents** — Build an AI agent that acts as a personal assistant, automate your life, or solve a real problem for yourself or your community. The use case is entirely up to you.
-
-**Framework:** [ElizaOS](https://elizaos.com) (latest v2)
-**Compute:** [Nosana](https://nosana.com) decentralized GPU network
-**Model:** Qwen3.5-27B (hosted endpoint provided by Nosana)
+A 4-agent ElizaOS system that gives every conversation real-time observability: every message is logged to PostgreSQL, topics are auto-detected, a REST API exposes all data, and agents can execute real tasks via Codex CLI.
 
 ---
 
-## Prizes — $3,000 USDC Total
+## What This Is
 
-| Place | Prize |
-|-------|-------|
-| 🥇 1st | $1,000 USDC |
-| 🥈 2nd | $750 USDC |
-| 🥉 3rd | $450 USDC |
-| 4th | $200 USDC |
-| 5th–10th | $100 USDC each |
+Most AI sessions are isolated — no history, no organization, no visibility. Relay fixes this at the infrastructure level.
 
----
+**4 agents, one shared event store:**
 
-## Schedule
+| Agent | Role |
+|-------|------|
+| **Relay** | Orchestrator: REST API (port 3890), Notion sync, Telegram ticker |
+| **CodeWorker** | Code review, debugging, refactoring via Codex |
+| **ResearchWorker** | Web research and summarization via Codex |
+| **ReviewWorker** | PR review, architecture critique, security audit via Codex |
 
-Follow Nosana's Luma for more information: [Nosana Luma](https://luma.com/calendar/cal-RF19mq3EtF4juLc)
-
-![](./assets/image.png)
+Every message any agent sends or receives is written to the `relay_events` PostgreSQL table with millisecond latency, topic auto-detection, and session tracking.
 
 ---
 
-## What to Build
+## Architecture
 
-There are no strict requirements on use case — build whatever is most useful to you. Some ideas to get started:
+```
+┌───────────────────────────────────────────────────────────┐
+│                   USER INTERFACES                         │
+│  ElizaOS UI (port 3000)    REST API (port 3890)           │
+└──────────────────────────┬────────────────────────────────┘
+                           │
+┌──────────────────────────▼────────────────────────────────┐
+│              4 ELIZAOS AGENTS (shared plugins)            │
+│                                                           │
+│  plugin-relay     → PostgreSQL event store, REST API,     │
+│                     Notion sync, Telegram ticker          │
+│                     Actions: GET_STATUS, SEARCH_HISTORY,  │
+│                     TOGGLE_TICKER                         │
+│                     Evaluators: topic detection, latency  │
+│                                                           │
+│  plugin-nosana-llm → Chat completions via Nosana endpoint │
+│                      (fixes Responses API incompatibility)│
+│                                                           │
+│  plugin-codex     → CODEX_EXEC: run any task via Codex   │
+│                     CODEX_REVIEW: code review via Codex   │
+└──────────────────────────┬────────────────────────────────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         ▼                 ▼                 ▼
+   PostgreSQL DB     Notion API       Telegram Bot API
+   relay_events      Events DB        HTML event cards
+   relay_sessions    Topics kanban
+```
 
-- 🗂️ **Personal assistant** — calendar, tasks, email drafting, reminders
-- 🔍 **Research agent** — web search, summarization, knowledge synthesis
-- 📱 **Social media manager** — Twitter/X, Telegram, Discord automation
-- 💰 **DeFi/crypto agent** — portfolio monitoring, on-chain alerts, trading insights
-- 🏠 **Home automation** — smart home control, IoT integration
-- 🛠️ **DevOps helper** — monitor services, automate deployments
-- 🎨 **Content creator** — blog posts, social copy, creative writing
+### Custom Plugins (built from scratch)
 
-**Tip:** ElizaOS has a rich [plugin ecosystem](https://elizaos.github.io/eliza/docs/core/plugins). Explore existing plugins and templates before building from scratch — you might find 80% of what you need already exists.
+**`src/plugin-relay/`** — Core observability layer
+- PostgreSQL schema with `relay_events` + `relay_sessions` tables (auto-migrated by ElizaOS)
+- REST API server on port 3890
+- Notion sync service (30-second poll cycle)
+- Telegram ticker (fires on every event)
+- Actions: `GET_STATUS`, `SEARCH_HISTORY`, `TOGGLE_TICKER`
+- Provider: `RELAY_SESSION_STATUS` (injects session stats into every LLM context)
+- Evaluators: `TOPIC_DETECTION`, `RELAY_LATENCY`
+
+**`src/plugin-nosana-llm/`** — LLM compatibility fix
+- Overrides `plugin-openai`'s TEXT_LARGE/TEXT_SMALL handlers
+- Forces `openai.chat()` → `/v1/chat/completions` (Nosana vLLM only supports Chat Completions, not the Responses API)
+- `priority: 1` beats `plugin-openai`'s default `priority: 0`
+
+**`src/plugin-codex/`** — Real task execution
+- `CODEX_EXEC` — delegates any coding/file/shell task to `codex exec --full-auto`
+- `CODEX_REVIEW` — runs `codex exec review` for comprehensive code review
+- Agents trigger these from natural language (detect: implement, fix, test, build, review, etc.)
 
 ---
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- **Node.js 23+**
+- **pnpm** — `npm install -g pnpm`
+- **ElizaOS CLI** — `pnpm add -g @elizaos/cli`
+- **Codex CLI** — must be installed and on PATH (`codex --version` to verify)
+- **PostgreSQL** — running locally or remote (for the relay event store)
+- **Docker** — for Nosana deployment (optional for local dev)
 
-- Node.js 23+
-- pnpm (`npm install -g pnpm`)
-- Docker (for deployment)
-- Git
+---
 
-### Quick Start
+## Setup
+
+### 1. Clone and install
 
 ```bash
-# Fork this repo, then clone your fork
 git clone https://github.com/YOUR-USERNAME/agent-challenge
 cd agent-challenge
-
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your Nosana endpoint details
-
-# Install dependencies
-bun i -g @elizaos/cli
-
-# Start your agent in development mode
-elizaos dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see the ElizaOS built-in client.
-
----
-
-## Claim Your Nosana Builders Credits
-
-All challenge participants get **free compute credits** to deploy and run their agents on Nosana.
-
-**How to claim:**
-
-1. Visit [nosana.com/builders-credits](https://nosana.com/builders-credits)
-2. Sign up or log in with your wallet
-3. Your credits will be added to your account automatically
-4. Use these credits to deploy your ElizaOS agent to the Nosana network
-
-These credits cover the compute costs for running your agent during the challenge period.
-
-> **Note:** Credits are airdropped twice a day. Please be patient if you don't see them immediately after signing up.
-
----
-
-## Configure Your LLM
-
-Nosana provides a hosted **Qwen3.5-27B-AWQ-4bit** endpoint for challenge participants. Update your `.env`:
-
-```env
-OPENAI_API_KEY=nosana
-OPENAI_API_URL=https://6vq2bcqphcansrs9b88ztxfs88oqy7etah2ugudytv2x.node.k8s.prd.nos.ci/v1
-MODEL_NAME=Qwen3.5-27B-AWQ-4bit
-```
-
-**Model Details:**
-- **Model ID:** `Qwen3.5-27B-AWQ-4bit`
-- **Max Context Length:** 60,000 tokens
-- **Provider:** Nosana decentralized inference
-- **Base Model:** cyankiwi/Qwen3.5-27B-AWQ-4bit
-
-### Option B: Local Development with Ollama
+### 2. Configure environment
 
 ```bash
-ollama pull qwen3.5:27b # or a smaller one for your system
-ollama serve
+cp .env.example .env
 ```
 
+Edit `.env`:
+
+```env
+# ── LLM ─────────────────────────────────────────────────────
+# Nosana-hosted Qwen/Qwen3.5-4B endpoint (both vars required)
+OPENAI_API_KEY=your-nosana-api-key
+OPENAI_API_URL=https://4ksj3tve5bazqwkuyqdhwdpcar4yutcuxphwhckrdxmu.node.k8s.prd.nos.ci/v1
+OPENAI_BASE_URL=https://4ksj3tve5bazqwkuyqdhwdpcar4yutcuxphwhckrdxmu.node.k8s.prd.nos.ci/v1
+MODEL_NAME=Qwen/Qwen3.5-4B
+LARGE_MODEL=Qwen/Qwen3.5-4B
+
+# ── Embedding ────────────────────────────────────────────────
+OPENAI_EMBEDDING_URL=https://4yiccatpyxx773jtewo5ccwhw1s2hezq5pehndb6fcfq.node.k8s.prd.nos.ci/v1
+OPENAI_EMBEDDING_API_KEY=your-nosana-api-key
+OPENAI_EMBEDDING_MODEL=Qwen3-Embedding-0.6B
+OPENAI_EMBEDDING_DIMENSIONS=1024
+
+# ── PostgreSQL ───────────────────────────────────────────────
+# The relay plugin auto-creates relay_events and relay_sessions tables
+POSTGRES_URL=postgres://postgres:password@localhost:5432/relay_db
+
+# ── ElizaOS ──────────────────────────────────────────────────
+SERVER_PORT=3000
+
+# ── Relay REST API ───────────────────────────────────────────
+RELAY_PORT=3890
+RELAY_LOG_DIR=./relay/logs
+RELAY_SESSION_STATE=./relay/relay-session-state.json
+RELAY_MAX_LOG_SIZE_MB=10
+RELAY_MAX_LOG_FILES=5
+
+# ── Notion (optional) ────────────────────────────────────────
+# NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxx
+# NOTION_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxx
+# NOTION_SYNC_INTERVAL_MS=30000
+
+# ── Telegram (optional) ─────────────────────────────────────
+# TELEGRAM_BOT_TOKEN=123456789:AAxxxxxxxxxxxxxxxx
+# TELEGRAM_CHAT_ID=-100xxxxxxxxxx
+TELEGRAM_TICKER_ENABLED=false
+```
+
+**Local dev with Ollama** (alternative to Nosana endpoint):
 ```env
 OPENAI_API_KEY=ollama
 OPENAI_API_URL=http://127.0.0.1:11434/v1
-MODEL_NAME=qwen3.5:27b
+OPENAI_BASE_URL=http://127.0.0.1:11434/v1
+MODEL_NAME=qwen3.5:4b
+LARGE_MODEL=qwen3.5:4b
 ```
 
----
-
-## Configure Your Embedding Model
-
-Nosana provides a hosted **Qwen3-Embedding-0.6B** endpoint for embeddings (used for RAG, semantic search, and memory). Update your `.env`:
-
-```env
-OPENAI_EMBEDDING_URL=https://4yiccatpyxx773jtewo5ccwhw1s2hezq5pehndb6fcfq.node.k8s.prd.nos.ci/v1
-OPENAI_EMBEDDING_API_KEY=nosana
-OPENAI_EMBEDDING_MODEL=Qwen3-Embedding-0.6B
-OPENAI_EMBEDDING_DIMENSIONS=1024
-```
-
-**Model Details:**
-- **Model ID:** `Qwen3-Embedding-0.6B`
-- **Dimensions:** 1024
-- **Provider:** Nosana decentralized inference
-
----
-
-## Customize Your Agent
-
-### 1. Define your agent's character
-
-Edit `characters/agent.character.json` to define your agent's personality, knowledge, and behavior:
-
-```json
-{
-  "name": "MyAgent",
-  "bio": ["Your agent's backstory and capabilities"],
-  "system": "Your agent's core instructions and behavior",
-  "plugins": ["@elizaos/plugin-bootstrap", "@elizaos/plugin-openai"],
-  "clients": ["direct"]
-}
-```
-
-### 2. Add plugins
-
-Extend your agent by adding plugins to `package.json` and your character file:
-
-| Plugin | Use Case |
-|--------|----------|
-| `@elizaos/plugin-bootstrap` | Required base plugin |
-| `@elizaos/plugin-openai` | OpenAI-compatible LLM (required for Nosana endpoint) |
-| `@elizaos/plugin-web-search` | Web search capability |
-| `@elizaos/plugin-telegram` | Telegram bot client |
-| `@elizaos/plugin-discord` | Discord bot client |
-| `@elizaos/plugin-twitter` | Twitter/X integration |
-| `@elizaos/plugin-browser` | Browser/web automation |
-| `@elizaos/plugin-sql` | Database access |
-
-Install a plugin:
-```bash
-pnpm add @elizaos/plugin-web-search
-```
-
-Add it to your character file:
-```json
-{
-  "plugins": ["@elizaos/plugin-bootstrap", "@elizaos/plugin-openai", "@elizaos/plugin-web-search"]
-}
-```
-
-### 3. Build custom actions (optional)
-
-Add your own custom logic in `src/index.ts`. See the example plugin already included.
-
-### 4. Persistent storage
-
-SQLite is configured by default — sufficient for development and small-scale agents. For a production-grade personal agent, consider:
-
-- A mounted volume on Nosana
-- External database (PostgreSQL, PlanetScale, etc.)
-- Decentralized storage (Arweave, IPFS)
-
----
-
-## Deploy to Nosana
-
-> **Important:** For this challenge, you must deploy your agent to Nosana's decentralized infrastructure. Do **not** use the standard `elizaos deploy` command — that deploys to centralized cloud providers. This challenge is about embracing decentralized compute.
-
-**Why Nosana?**
-- **Decentralized** — Your agent runs on a distributed network of GPU providers, not AWS/GCP/Azure
-- **Cost-effective** — Use your free builders credits (no credit card required)
-- **Permissionless** — No vendor lock-in, full control over your infrastructure
-- **Challenge requirement** — All submissions must be deployed on Nosana
-
-### Prerequisites
-
-Before deploying, ensure you have:
-- [Docker](https://docs.docker.com/get-docker/) installed and running
-- A [Docker Hub](https://hub.docker.com/) account (free)
-- Your [Nosana builders credits](https://nosana.com/builders-credits) claimed
-
-### Step 1: Build and Push Your Docker Image
-
-Your agent needs to be containerized and available on a public registry (Docker Hub) so Nosana nodes can pull and run it.
+### 3. Create the database
 
 ```bash
-# Build your Docker image
-docker build -t yourusername/nosana-eliza-agent:latest .
+# Create the database (the relay plugin handles table creation)
+createdb relay_db
 
-# Test it locally first (recommended)
-docker run -p 3000:3000 --env-file .env yourusername/nosana-eliza-agent:latest
+# Or with a specific user:
+psql -c "CREATE DATABASE relay_db;" -U postgres
+```
 
-# Visit http://localhost:3000 to verify it works
+---
 
-# Log in to Docker Hub
+## Running
+
+### All 4 agents (recommended)
+
+```bash
+pnpm start
+# or dev mode with hot reload:
+pnpm dev
+```
+
+ElizaOS reads `src/index.ts` (the Project entry point) and boots all 4 agents sharing the relay plugin.
+
+### Single agent (Relay only)
+
+```bash
+pnpm start:relay
+# or:
+pnpm dev:relay
+```
+
+### Expected startup output
+
+```
+[Relay] online — REST API on http://0.0.0.0:3890
+[CodeWorker] online
+[ResearchWorker] online
+[ReviewWorker] online
+```
+
+Then open **http://localhost:3000** for the ElizaOS chat UI.
+
+---
+
+## Testing
+
+### Verify the LLM is working
+
+Send any message in the ElizaOS UI at http://localhost:3000 and confirm you get a response. If you see `Unexpected message role` in logs, check that `OPENAI_API_URL` is set (not just `OPENAI_BASE_URL`).
+
+### Verify the REST API
+
+```bash
+# Health check — should return status + session info
+curl http://localhost:3890/health
+
+# Aggregate stats
+curl http://localhost:3890/stats
+
+# All events (most recent 20)
+curl "http://localhost:3890/events?limit=20"
+
+# Events for a specific topic
+curl "http://localhost:3890/events?topic=code"
+
+# All sessions
+curl http://localhost:3890/sessions
+
+# Current session state
+curl http://localhost:3890/session-state
+
+# Topic summary with status
+curl http://localhost:3890/topics
+```
+
+### Send an event via API
+
+```bash
+curl -X POST http://localhost:3890/send \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Test message", "topic": "test"}'
+```
+
+### Toggle Telegram ticker
+
+```bash
+# Enable
+curl -X POST http://localhost:3890/ticker \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+
+# Disable
+curl -X POST http://localhost:3890/ticker \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+```
+
+### Test Codex execution (via chat)
+
+In the ElizaOS UI, talk to CodeWorker:
+```
+"Implement a debounce utility in src/utils/debounce.ts"
+"Fix the TypeScript errors in src/index.ts"
+"Run the tests and show me the results"
+"Review the code in this repository"
+```
+
+The agent will trigger `CODEX_EXEC` or `CODEX_REVIEW` and delegate to Codex CLI.
+
+### Test agent actions via chat
+
+Talk to the Relay agent:
+```
+"What's my current session status?"   → GET_STATUS action
+"What did I work on today?"           → SEARCH_HISTORY action
+"Stop sending Telegram notifications" → TOGGLE_TICKER action
+```
+
+---
+
+## REST API Reference
+
+All endpoints on `http://localhost:3890` (configurable via `RELAY_PORT`).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Service health, session status, ticker state |
+| `GET` | `/stats` | Total events, sessions, 24h count, avg latency |
+| `GET` | `/events` | Global event feed (`?since=`, `?limit=`, `?topic=`) |
+| `GET` | `/sessions` | All sessions |
+| `GET` | `/sessions/:id/events` | Event timeline for a specific session |
+| `GET` | `/topics` | Topic summary with status (in-progress/done/stale) |
+| `GET` | `/session-state` | Current JSON session state |
+| `POST` | `/send` | Log a send event `{ content, topic?, sender? }` |
+| `POST` | `/ticker` | Toggle Telegram ticker `{ enabled: bool }` |
+| `DELETE` | `/session/:id` | Purge session state |
+
+---
+
+## Agent Actions Reference
+
+Actions are triggered by the LLM based on message content.
+
+### plugin-relay actions
+
+| Action | Trigger keywords | What it does |
+|--------|-----------------|--------------|
+| `GET_STATUS` | "status", "stats", "how many" | Returns session stats from the event store |
+| `SEARCH_HISTORY` | "history", "what did I", "last week" | SQL query against relay_events |
+| `TOGGLE_TICKER` | "telegram", "notifications", "ticker" | Enables/disables Telegram alerts |
+
+### plugin-codex actions
+
+| Action | Trigger keywords | What it does |
+|--------|-----------------|--------------|
+| `CODEX_EXEC` | "implement", "create", "fix", "test", "build", "run", "install", "deploy" | Runs `codex exec --full-auto <task>` |
+| `CODEX_REVIEW` | "review", "audit", "code quality", "security", "find bug" | Runs `codex exec review` |
+
+---
+
+## Project Structure
+
+```
+agent-challenge/
+├── characters/
+│   ├── relay.character.json           ← Relay orchestrator
+│   ├── code-worker.character.json     ← CodeWorker specialist
+│   ├── research-worker.character.json ← ResearchWorker specialist
+│   └── review-worker.character.json   ← ReviewWorker specialist
+│
+├── src/
+│   ├── index.ts                       ← Project entry — boots all 4 agents
+│   │
+│   ├── plugin-relay/                  ← Core observability plugin
+│   │   ├── index.ts                   ← Plugin entry, service bootstrap
+│   │   ├── schema.ts                  ← Drizzle schema (relay_events, relay_sessions)
+│   │   ├── repository.ts              ← DB queries (writeEvent, getEvents, etc.)
+│   │   ├── types.ts                   ← Shared TypeScript types
+│   │   ├── actions/
+│   │   │   ├── get-status.ts
+│   │   │   ├── search-history.ts
+│   │   │   └── toggle-ticker.ts
+│   │   ├── evaluators/
+│   │   │   ├── topic-detection.evaluator.ts
+│   │   │   └── latency.evaluator.ts
+│   │   ├── providers/
+│   │   │   └── session-status.provider.ts
+│   │   ├── services/
+│   │   │   ├── relay-api.service.ts   ← HTTP server (port 3890)
+│   │   │   ├── notion-sync.service.ts ← 30s Notion poll cycle
+│   │   │   ├── ticker.service.ts      ← Telegram event notifications
+│   │   │   ├── latency-tracker.ts     ← pendingSends map
+│   │   │   ├── session-state.ts       ← JSON state persistence
+│   │   │   └── log-rotation.ts        ← 10MB/5-file log rotation
+│   │   └── notion/
+│   │       └── ...                    ← Notion API helpers
+│   │
+│   ├── plugin-nosana-llm/             ← LLM compatibility plugin
+│   │   └── index.ts                   ← Forces /v1/chat/completions
+│   │
+│   └── plugin-codex/                  ← Task execution plugin
+│       └── index.ts                   ← CODEX_EXEC + CODEX_REVIEW actions
+│
+├── nos_job_def/
+│   └── nosana_eliza_job_definition.json
+├── Dockerfile
+├── .env.example
+└── package.json
+```
+
+---
+
+## Nosana Deployment
+
+### Build and push Docker image
+
+```bash
+docker build -t yourusername/nosana-relay-agent:latest .
+docker run -p 3000:3000 -p 3890:3890 --env-file .env yourusername/nosana-relay-agent:latest
+# Verify at http://localhost:3000 and http://localhost:3890/health
+
 docker login
-
-# Push to Docker Hub (make it public)
-docker push yourusername/nosana-eliza-agent:latest
+docker push yourusername/nosana-relay-agent:latest
 ```
 
-> **Tip:** Replace `yourusername` with your actual Docker Hub username. Make sure your repository is **public** so Nosana nodes can pull it.
+### Update job definition
 
-### Step 2: Configure Your Job Definition
+Edit `nos_job_def/nosana_eliza_job_definition.json` — change the image and env vars to match your setup.
 
-Edit `nos_job_def/nosana_eliza_job_definition.json` and update the Docker image reference:
+### Deploy via Nosana Dashboard
 
-```json
-{
-  "version": "0.1",
-  "type": "container",
-  "meta": {
-    "trigger": "cli"
-  },
-  "ops": [
-    {
-      "type": "container/run",
-      "id": "eliza-agent",
-      "args": {
-        "image": "yourusername/nosana-eliza-agent:latest",  // <- Change this
-        "ports": ["3000:3000"],
-        "env": {
-          "OPENAI_API_KEY": "nosana",
-          "OPENAI_API_URL": "https://6vq2bcqphcansrs9b88ztxfs88oqy7etah2ugudytv2x.node.k8s.prd.nos.ci/v1",
-          "MODEL_NAME": "Qwen3.5-27B-AWQ-4bit"
-        }
-      }
-    }
-  ]
-}
-```
+1. Visit [dashboard.nosana.com/deploy](https://dashboard.nosana.com/deploy)
+2. Connect your Solana wallet
+3. Paste your job definition JSON
+4. Select GPU market (`nvidia-3090` recommended)
+5. Deploy — you'll get a public URL when a node picks up the job
 
-> **Security Note:** For production deployments, avoid hardcoding sensitive environment variables. Consider using Nosana secrets management or external secret stores.
-
-### Step 3: Deploy via Nosana Dashboard (Easiest)
-
-This is the recommended method for beginners:
-
-1. Visit the [Nosana Dashboard](https://dashboard.nosana.com/deploy)
-2. Connect your Solana wallet (you need this for authentication and using credits)
-3. Click **Expand** to open the job definition editor
-4. Copy and paste the contents of your `nos_job_def/nosana_eliza_job_definition.json` file
-5. Select your preferred compute market:
-   - `nvidia-3090` — High performance (recommended for production)
-   - `nvidia-rtx-4090` — Premium performance
-   - `cpu-only` — Budget option (slower inference)
-6. Click **Deploy**
-7. Wait for a node to pick up your job (usually 30-60 seconds)
-8. Once running, you'll receive a public URL to access your agent
-
-### Step 4: Deploy via Nosana CLI (Advanced)
-
-For developers who prefer the command line or want to automate deployments:
-
-1. First get your API key at [https://deploy.nosana.com/account/](https://deploy.nosana.com/account/)
-2. Edit the [Nosana ElizaOS Job Definition File](./nos_job_def/nosana_eliza_job_definition.json)
-3. Learn more about [Nosana Job Definition Here](https://learn.nosana.com/deployments/jobs/job-definition/intro.html)
+### Deploy via Nosana CLI
 
 ```bash
-# Install the Nosana CLI globally
 npm install -g @nosana/cli
 
-# Deploy your agent
 nosana job post \
   --file ./nos_job_def/nosana_eliza_job_definition.json \
   --market nvidia-4090 \
   --timeout 300 \
-  --api <API_KEY>
+  --api YOUR_API_KEY
 
-# Monitor your deployment
 nosana job status <job-id>
-
-# View logs
 nosana job logs <job-id>
 ```
 
-**CLI Flags Explained:**
-- `--file` — Path to your job definition JSON
-- `--market` — Which GPU market to use (nvidia-3090, nvidia-rtx-4090, etc.)
-- `--timeout` — Maximum job runtime in minutes
+---
 
-### Step 5: Verify Your Deployment
+## Notion Integration Setup (Optional)
 
-Once your job is running on Nosana:
+1. Create an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations)
+2. Share a Notion page with the integration
+3. Copy the page ID from the URL (32-char hex after the last `/`)
+4. Set in `.env`:
+   ```env
+   NOTION_TOKEN=secret_xxxxxxxxxxxxxxxxxxxx
+   NOTION_PAGE_ID=xxxxxxxxxxxxxxxxxxxxxxxx
+   NOTION_SYNC_INTERVAL_MS=30000
+   ```
 
-1. **Test the endpoint** — Visit the public URL provided by Nosana
-2. **Check agent responsiveness** — Send a test message to your agent
-3. **Monitor logs** — Use the Nosana Dashboard or CLI to view logs
-4. **Verify inference** — Ensure the Qwen3.5-27B model is responding correctly
-
-### Troubleshooting
-
-**Agent not starting?**
-- Check that your Docker image is public on Docker Hub
-- Verify your job definition JSON is valid
-- Ensure environment variables are correctly set
-- Check Nosana dashboard logs for error messages
-
-**Slow response times?**
-- Consider using a higher-tier GPU market (nvidia-rtx-4090)
-- Optimize your ElizaOS configuration
-- Check if the Nosana inference endpoint is reachable
-
-**Out of credits?**
-- Visit [nosana.com/builders-credits](https://nosana.com/builders-credits) to check your balance
-- Credits are airdropped twice daily — be patient if you just signed up
-
-**Need help?**
-- Join the [Nosana Discord](https://nosana.com/discord) for support
-- Check the [Nosana documentation](https://learn.nosana.io)
-- Review the [Nosana CLI docs](https://github.com/nosana-ci/nosana-cli)
+The plugin auto-creates Events and Topics databases in that Notion page on first sync.
 
 ---
 
-## What You'll Build
+## Telegram Ticker Setup (Optional)
 
-Your submission should include:
-- **A working AI agent** built with ElizaOS
-- **A frontend interface** to interact with your agent (web UI, chat interface, dashboard, etc.)
-- **Deployment on Nosana** — your agent must run on Nosana's decentralized infrastructure
-
-**The deeper your Nosana integration, the better your score.** We're looking for projects that fully embrace decentralized infrastructure — not just a minimal deployment, but thoughtful integration into your architecture.
-
-### Examples of Deep Integration (Better Scores):
-- Using Nosana for both training and inference
-- Multi-node deployments across Nosana's network
-- Custom deployment pipelines using Nosana CLI
-- Monitoring and observability integrated with Nosana infrastructure
-- Storage solutions that leverage decentralized networks
-- Creative use of Nosana's compute marketplace
+1. Create a bot via [@BotFather](https://t.me/BotFather) — copy the token
+2. Add the bot to a group or channel
+3. Get the chat ID (use [@userinfobot](https://t.me/userinfobot) or check the Telegram API)
+4. Set in `.env`:
+   ```env
+   TELEGRAM_BOT_TOKEN=123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TELEGRAM_CHAT_ID=-100xxxxxxxxxx
+   TELEGRAM_TICKER_ENABLED=true
+   ```
 
 ---
 
-## Submission
+## Troubleshooting
 
-Submit your project via the official submission page: **[superteam.fun/earn/listing/nosana-builders-elizaos-challenge/](https://superteam.fun/earn/listing/nosana-builders-elizaos-challenge/)** before **April 14, 2026**.
+**`Not implemented` on startup**
+- All 3 services (`RelayApiService`, `NotionSyncService`, `TelegramTickerService`) must have a `static async start(runtime)` method. These are already implemented in this repo.
 
-**Submission Checklist** — All items are required:
+**`Unexpected message role` / calls to `/v1/responses`**
+- `plugin-openai` defaults to the OpenAI Responses API. The `plugin-nosana-llm` in this repo overrides it with priority 1.
+- Make sure `OPENAI_API_URL` is set (not just `OPENAI_BASE_URL`).
 
-- [ ] **Fork this repository** and build your agent on the `elizaos-challenge` branch
-- [ ] **Build a frontend/UI** for interacting with your agent
-- [ ] **Deploy to Nosana** and get your public deployment URL (agent must run on Nosana infrastructure)
-- [ ] **Star the following repositories:**
+**Database connection errors**
+- Verify `POSTGRES_URL` is correct and the database exists.
+- The relay plugin auto-creates tables on boot — you just need an empty database.
+
+**Codex not found**
+- Verify: `which codex` and `codex --version`
+- Codex must be on PATH when ElizaOS starts.
+
+**Notion not syncing**
+- Check `NOTION_TOKEN` and `NOTION_PAGE_ID` are set correctly.
+- Verify the integration has access to the page in Notion.
+
+---
+
+## Submission Checklist
+
+- [ ] Fork this repository
+- [ ] Build and deploy to Nosana (public URL required)
+- [ ] Star these repos:
   - [ ] [nosana-ci/agent-challenge](https://github.com/nosana-ci/agent-challenge)
   - [ ] [nosana-ci/nosana-programs](https://github.com/nosana-ci/nosana-programs)
   - [ ] [nosana-ci/nosana-kit](https://github.com/nosana-ci/nosana-kit)
   - [ ] [nosana-ci/nosana-cli](https://github.com/nosana-ci/nosana-cli)
-- [ ] **Make a social media post** about your project on your platform of choice (X/Twitter, LinkedIn, Bluesky, Instagram, or other)
-- [ ] **Provide your GitHub fork link** (public repository)
-- [ ] **Provide your Nosana deployment URL** (running agent)
-- [ ] **Write a description** of your agent and what it does (≤300 words)
-- [ ] **Record a video demo** (<1 minute) showing your agent and frontend in action
-
-> **⚠️ Important:** Submissions that do not meet these requirements will not be considered.
-
-> For complete submission requirements and additional information, visit the [official challenge page](https://superteam.fun/earn/listing/nosana-builders-elizaos-challenge/).
+- [ ] Social media post about the project
+- [ ] Agent description ≤300 words
+- [ ] Video demo <1 minute
+- [ ] Submit at [superteam.fun/earn/listing/nosana-builders-elizaos-challenge](https://superteam.fun/earn/listing/nosana-builders-elizaos-challenge/) before April 14, 2026
 
 ---
 
@@ -413,57 +489,15 @@ Submit your project via the official submission page: **[superteam.fun/earn/list
 | Creativity & originality | 15% |
 | Documentation | 10% |
 
-**Judging Details:**
-- **Technical implementation (25%)** — Code quality, architecture, and ElizaOS best practices
-- **Nosana integration depth (25%)** — How deeply Nosana is integrated into your deployment and infrastructure
-- **Usefulness & UX (25%)** — Real-world applicability, frontend quality, and user experience
-- **Creativity & originality (15%)** — Innovative use cases and novel approaches
-- **Documentation (10%)** — Code quality, README, setup instructions
-
-**Judges:** DevRel Lead & Ecosystem Specialist, Nosana
-
----
-
-## Project Structure
-
-```
-├── characters/
-│   └── agent.character.json   # Your agent's character definition
-├── src/
-│   └── index.ts               # Custom plugin entry point (optional)
-├── nos_job_def/
-│   └── nosana_eliza_job_definition.json  # Nosana deployment config
-├── Dockerfile                 # Container configuration
-├── .env.example               # Environment variable template
-└── package.json
-```
-
 ---
 
 ## Resources
 
-### ElizaOS
-- [ElizaOS Documentation](https://elizaos.github.io/eliza/docs) — Full framework docs
-- [ElizaOS Plugin Directory](https://elizaos.github.io/eliza/docs/core/plugins) — Browse available plugins
-- [ElizaOS GitHub](https://github.com/elizaos/eliza) — Source code and examples
-- [ElizaOS Discord](https://discord.gg/elizaos) — Community support
-
-### Nosana
-- [Nosana Documentation](https://docs.nosana.io) — Platform guide
-- [Nosana Dashboard](https://dashboard.nosana.com) — Deploy and manage jobs
-- [Nosana CLI](https://github.com/nosana-ci/nosana-cli) — Command-line deployment
-- [Nosana Discord](https://nosana.com/discord) — Support and endpoint URL
-
-### Qwen3.5
-- [Qwen3.5-27B on HuggingFace](https://huggingface.co/Qwen/Qwen3.5-27B)
-
----
-
-## Support & Community
-
-- **Discord** — Join [Nosana Discord](https://nosana.com/discord) for support, the Nosana endpoint URL, and to connect with other builders
-- **Twitter/X** — Follow [@nosana_ai](https://x.com/nosana_ai) and [@elizaos](https://x.com/elizaos) for updates
-- **GitHub** — Open an issue in this repo if you find problems with the template
+- [ElizaOS Documentation](https://elizaos.github.io/eliza/docs)
+- [Nosana Documentation](https://docs.nosana.io)
+- [Nosana Dashboard](https://dashboard.nosana.com)
+- [Nosana Builders Credits](https://nosana.com/builders-credits)
+- [Nosana Discord](https://nosana.com/discord)
 
 ---
 
@@ -477,10 +511,6 @@ Submit your project via the official submission page: **[superteam.fun/earn/list
  </picture>
 </a>
 
-## License
-
-This template is open source and available under the [MIT License](./LICENSE).
-
 ---
 
-**Built with ElizaOS · Deployed on Nosana · Powered by Qwen3.5**
+*Built with ElizaOS · Powered by Qwen/Qwen3.5-4B · Deployed on Nosana*

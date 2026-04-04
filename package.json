@@ -1,20 +1,25 @@
 {
-  "name": "nosana-eliza-agent",
+  "name": "nosana-eliza-relay",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "elizaos start --character ./characters/agent.character.json",
-    "dev": "elizaos dev --character ./characters/agent.character.json"
+    "start":     "elizaos start",
+    "dev":       "elizaos dev",
+    "start:relay": "elizaos start --character ./characters/relay.character.json",
+    "dev:relay":   "elizaos dev --character ./characters/relay.character.json"
   },
   "dependencies": {
-    "@elizaos/core": "^1.0.0",
-    "@elizaos/plugin-anthropic": "^1.5.12",
-    "@elizaos/plugin-bootstrap": "^1.0.0",
-    "@elizaos/plugin-openai": "^1.0.0"
+    "@elizaos/core":              "^1.0.0",
+    "@elizaos/plugin-sql":        "^1.0.0",
+    "@elizaos/plugin-bootstrap":  "^1.0.0",
+    "@elizaos/plugin-openai":     "^1.0.0",
+    "@notionhq/client":           "^2.2.15",
+    "drizzle-orm":                "^0.38.0"
   },
   "devDependencies": {
     "@elizaos/cli": "^1.0.0",
-    "typescript": "^5.0.0"
+    "typescript":   "^5.0.0"
   }
 }

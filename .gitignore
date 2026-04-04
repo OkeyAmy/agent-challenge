@@ -92,3 +92,7 @@ pnpm-lock.yaml
 bun.lockb
 /.eliza/.elizadb
 /dist
+
+
+.remember/
+agent-relay-orchestrator/

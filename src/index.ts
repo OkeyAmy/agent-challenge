@@ -1,42 +1,64 @@
 /**
- * Custom Plugin Entry Point
+ * src/index.ts — ElizaOS Project entry point
  *
- * This file is where you can define custom actions, providers, and evaluators
- * for your ElizaOS agent. Add your logic here and reference this plugin in
- * your character file.
+ * Registers 4 agents sharing the relay_events PostgreSQL table.
+ * The relayPlugin is injected directly via ProjectAgent.plugins so ElizaOS
+ * doesn't have to resolve it as a package name (local path resolution breaks
+ * inside @elizaos/core when using character file plugin strings).
  *
- * ElizaOS Plugin Docs: https://elizaos.github.io/eliza/docs/core/plugins
+ *   Relay         — orchestrator: REST API, Notion sync, Telegram ticker
+ *   CodeWorker    — code review, debugging, refactoring
+ *   ResearchWorker — web research, summarization
+ *   ReviewWorker  — PR review, architecture critique, quality gate
+ *
+ * Run:
+ *   pnpm start:all   → loads this file (Project pattern, all 4 agents)
+ *   pnpm start       → loads relay.character.json only (single agent)
  */
 
-import { type Plugin } from "@elizaos/core";
+import { type Project, type ProjectAgent, logger } from '@elizaos/core';
+import { relayPlugin } from './plugin-relay/index.js';
+import { nosanaLlmPlugin } from './plugin-nosana-llm/index.js';
+import { codexPlugin } from './plugin-codex/index.js';
+import relayChar from '../characters/relay.character.json' with { type: 'json' };
+import codeChar from '../characters/code-worker.character.json' with { type: 'json' };
+import researchChar from '../characters/research-worker.character.json' with { type: 'json' };
+import reviewChar from '../characters/review-worker.character.json' with { type: 'json' };
 
-/**
- * Example custom action.
- * Replace this with your own action logic.
- */
-const exampleAction = {
-  name: "EXAMPLE_ACTION",
-  description: "An example action — replace with your own.",
-  similes: ["DEMO", "SAMPLE"],
-  validate: async () => true,
-  handler: async (_runtime: unknown, message: { content: { text: string } }) => {
-    console.log("Custom action triggered with message:", message.content.text);
-    return true;
+const relayAgent: ProjectAgent = {
+  character: relayChar as any,
+  plugins:   [relayPlugin, nosanaLlmPlugin, codexPlugin],
+  init: async (runtime) => {
+    logger.info(`[${runtime.character.name}] online — REST API on http://0.0.0.0:${process.env.RELAY_PORT ?? 3890}`);
   },
-  examples: [],
 };
 
-/**
- * Your custom plugin.
- * Add this plugin's name to the `plugins` array in your character file
- * to activate it.
- */
-export const customPlugin: Plugin = {
-  name: "custom-plugin",
-  description: "My custom ElizaOS plugin",
-  actions: [exampleAction],
-  providers: [],
-  evaluators: [],
+const codeWorkerAgent: ProjectAgent = {
+  character: codeChar as any,
+  plugins:   [relayPlugin, nosanaLlmPlugin, codexPlugin],
+  init: async (runtime) => {
+    logger.info(`[${runtime.character.name}] online`);
+  },
 };
 
-export default customPlugin;
+const researchWorkerAgent: ProjectAgent = {
+  character: researchChar as any,
+  plugins:   [relayPlugin, nosanaLlmPlugin, codexPlugin],
+  init: async (runtime) => {
+    logger.info(`[${runtime.character.name}] online`);
+  },
+};
+
+const reviewWorkerAgent: ProjectAgent = {
+  character: reviewChar as any,
+  plugins:   [relayPlugin, nosanaLlmPlugin, codexPlugin],
+  init: async (runtime) => {
+    logger.info(`[${runtime.character.name}] online`);
+  },
+};
+
+const project: Project = {
+  agents: [relayAgent, codeWorkerAgent, researchWorkerAgent, reviewWorkerAgent],
+};
+
+export default project;
