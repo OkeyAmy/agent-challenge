@@ -1,0 +1,7 @@
+target/
+.env
+*.jsonl
+*.log
+forge_bin
+Dockerfile.sandbox
+Dockerfile.release

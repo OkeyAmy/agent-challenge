@@ -1,0 +1,36 @@
+services:
+  forge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: forge:latest
+    env_file:
+      - .env
+    environment:
+      - FORGE_MODEL=${FORGE_MODEL}
+      - FORGE_BASE_URL=${FORGE_BASE_URL}
+      - FORGE_API_KEY=${FORGE_API_KEY}
+      - RUST_LOG=${RUST_LOG:-forge=info}
+    volumes:
+      # Mount the host Docker socket so forge can spin up agent containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist trajectory output on the host
+      - ./trajectories:/trajectories
+    # Allow forge to talk to the Docker socket
+    group_add:
+      - "${DOCKER_GID:-999}"
+    # Override entrypoint to pass a full run command, e.g.:
+    #   docker compose run forge run --github-url https://github.com/owner/repo/issues/1
+    command: ["--help"]
+    restart: "no"
+
+  # One-shot helper: show trajectory stats from the output dir
+  quick-stats:
+    image: forge:latest
+    env_file:
+      - .env
+    volumes:
+      - ./trajectories:/trajectories
+    command: ["quick-stats", "/trajectories"]
+    restart: "no"

@@ -1,0 +1,12 @@
+# Fast release image — copies the pre-built binary from target/release/
+# Base: forge-sandbox (python:3.11-slim + git + libssl), already built locally.
+FROM forge-sandbox:latest
+
+USER root
+
+COPY forge_bin /usr/local/bin/forge
+
+RUN mkdir -p /trajectories
+
+ENTRYPOINT ["forge"]
+CMD ["--help"]

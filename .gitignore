@@ -1,0 +1,23 @@
+# Build output
+/target
+
+# Secrets — never commit
+.env
+*.key
+*.pem
+*.p12
+*.pfx
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Sandbox image Dockerfile (local build helper, not needed in repo)
+Dockerfile.sandbox
+
+# NOTE: trajectories/ is intentionally NOT ignored.
+# The .traj files are checked in as evidence of real agent runs for judges.

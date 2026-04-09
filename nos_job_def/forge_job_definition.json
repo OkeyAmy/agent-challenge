@@ -1,0 +1,33 @@
+{
+  "version": "0.1",
+  "ops": [
+    {
+      "id": "forge-agent",
+      "type": "container/run",
+      "args": {
+        "image": "okeyamy/forge:latest",
+        "expose": 0,
+        "env": {
+          "FORGE_MODEL": "Qwen3.5-27B-AWQ-4bit",
+          "FORGE_BASE_URL": "https://6vq2bcqphcansrs9b88ztxfs88oqy7etah2ugudytv2x.node.k8s.prd.nos.ci/v1",
+          "FORGE_API_KEY": "nosana",
+          "RUST_LOG": "forge=info"
+        },
+        "cmd": [
+          "run",
+          "--github-url", "https://github.com/OkeyAmy/Axioschat-Onboard/issues/25",
+          "--output-dir", "/trajectories"
+        ],
+        "volumes": [
+          {
+            "name": "trajectories",
+            "path": "/trajectories"
+          }
+        ]
+      },
+      "execution": {
+        "group": "run"
+      }
+    }
+  ]
+}
