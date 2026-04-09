@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-09  
 **Status:** Draft, corrected against current TypeScript repo  
-**Phase goal:** Establish the Rust rewrite foundation for shared contracts and tool behavior  
+**Phase goal:** Establish the Rust implementation foundation for SWEagent shared contracts and tool behavior  
 **Scope:** `forge-types` and `forge-tools` only
 
 ---
@@ -10,6 +10,8 @@
 ## 1. Purpose and Scope
 
 This phase does **not** assume a Rust workspace already exists.
+
+SWE stands for **Software Engineering**. In this repo, `SWEagent` means an AI software-engineering agent that works with code, tools, and environment/runtime workflows.
 
 Its purpose is to create the first Rust foundation beside the current TypeScript implementation by defining:
 
@@ -29,7 +31,7 @@ This phase should be driven by the actual TypeScript repo and test-observed beha
 Before implementation, treat these as already established:
 
 - the repo is currently implemented in TypeScript
-- the Rust rewrite is side-by-side, not in-place
+- the Rust implementation is side-by-side, not in-place
 - CLI/config/tool/env/trajectory contracts are the parity target
 - runtime/docker/repo/tool behavior must be real, not stubbed
 

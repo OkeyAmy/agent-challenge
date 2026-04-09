@@ -1,29 +1,31 @@
-# Forge — Rust Rewrite — Design Spec
+# Forge — Rust Implementation — Design Spec
 
 **Date:** 2026-04-09  
-**Status:** Draft, validated against current TypeScript repo  
-**Source of truth today:** `examples/SWEagent` TypeScript implementation and tests  
-**Target state:** Side-by-side Rust rewrite with production parity  
+**Status:** Draft, validated against current SWEagent behavior and implementation notes  
+**Source of truth today:** OkeyAmy previous `SWEagent` project implementation and test suite  
+**Target state:** Side-by-side Rust implementation with production parity  
 **Platform target:** Linux-first
 
 ---
 
 ## 1. Purpose and Status
 
-This document describes the **proposed** Rust rewrite architecture for the current TypeScript `SWEagent` codebase.
+This document describes the **proposed** Rust implementation architecture for the current `SWEagent` codebase.
+
+SWE stands for **Software Engineering**. `SWEagent` in this repository is an AI software-engineering agent system for code editing, tooling, and runtime-environment workflows.
 
 Important reality check:
 
-- The repository is currently implemented in **TypeScript**, not Rust.
+- The repository is currently implemented in a non-Rust stack, not Rust.
 - There is **no existing Rust workspace** in this repo yet.
 - Any Rust crate layout in this document is a **design target**, not implemented reality.
-- The authoritative behavior to preserve comes from the TypeScript codebase, its tests, and stable on-disk/output contracts.
+- The authoritative behavior to preserve comes from the current codebase, its tests, and stable on-disk/output contracts.
 
 This document should be read as a migration design, not as a description of code that already exists.
 
 ---
 
-## 2. Current TypeScript Reality
+## 2. Current Implementation Reality
 
 The current implementation is organized around these subsystems:
 
@@ -36,7 +38,7 @@ The current implementation is organized around these subsystems:
 - `src/types.ts` — shared types including trajectory/history-related contracts
 - `tests` — the strongest parity specification in the repo
 
-The Rust rewrite must preserve external behavior, but it should **not** mirror the TypeScript file layout line-by-line.
+The Rust implementation must preserve external behavior, but it should **not** mirror the current file layout line-by-line.
 
 ---
 
@@ -45,8 +47,8 @@ The Rust rewrite must preserve external behavior, but it should **not** mirror t
 | Area | Decision |
 |---|---|
 | Migration shape | Build Rust side-by-side, cut over only after parity passes |
-| Behavior source | Prefer TS behavior where coherent; use tests and actual outputs as contract |
-| Partial TS areas | Do not treat incomplete TS implementations as authoritative |
+| Behavior source | Prefer current implementation behavior where coherent; use tests and actual outputs as contract |
+| Partial areas | Do not treat incomplete implementations as authoritative |
 | Tooling/runtime | Docker, repo handling, shell state, file IO, and tools must be real |
 | Compatibility | Preserve CLI/config/env/tool/output contracts |
 | Trajectories | Read legacy snake_case and camelCase variants; write one canonical format |
@@ -55,15 +57,15 @@ The Rust rewrite must preserve external behavior, but it should **not** mirror t
 
 Non-goals:
 
-- preserving TypeScript internal names or class hierarchy
-- preserving TypeScript file layout
+- preserving legacy internal names or class hierarchy
+- preserving legacy file layout
 - assuming every README claim is backed by complete implementation
 
 ---
 
 ## 4. Authoritative Contract Surfaces
 
-These are the compatibility surfaces the Rust rewrite must preserve.
+These are the compatibility surfaces the Rust implementation must preserve.
 
 ### 4.1 CLI surface
 
@@ -85,7 +87,7 @@ Behavioral parity matters more than implementation strategy.
 
 ### 4.2 Config surface
 
-Preserve the current config concepts and naming used by the TypeScript schemas:
+Preserve the current config concepts and naming used by the existing schemas:
 
 - run-single config
 - run-batch config
@@ -94,7 +96,7 @@ Preserve the current config concepts and naming used by the TypeScript schemas:
 - agent model/config surface
 - problem statement config
 
-The Rust implementation should accept the same YAML/JSON config shapes where those are already used by the TS CLI and tests.
+The Rust implementation should accept the same YAML/JSON config shapes where those are already used by the current CLI and tests.
 
 ### 4.3 Environment and repo lifecycle
 
@@ -134,14 +136,14 @@ When code, docs, and tests disagree, the parity target should prefer:
 
 1. actual runtime behavior and persisted output
 2. tests
-3. TypeScript schemas/code
+3. existing schemas/code
 4. README/docs claims
 
 ---
 
-## 5. Current TS Gaps and Partial Areas
+## 5. Current Gaps and Partial Areas
 
-Not all of the TypeScript repo is equally authoritative.
+Not all parts of the current repository are equally authoritative.
 
 Known partial or inconsistent areas:
 
@@ -156,13 +158,13 @@ Known partial or inconsistent areas:
   - `modelStats` vs `model_stats`
 - some README claims overstate completeness relative to the implementation
 
-Implication: the Rust rewrite should preserve the real contract surface, but it should **properly implement** incomplete areas rather than reproducing partial TS behavior blindly.
+Implication: the Rust implementation should preserve the real contract surface, but it should **properly implement** incomplete areas rather than reproducing partial legacy behavior blindly.
 
 ---
 
 ## 6. Proposed Side-by-Side Rust Architecture
 
-The Rust rewrite should be introduced as a new workspace beside the TypeScript codebase, not as an in-place mutation of the TS source tree.
+The Rust implementation should be introduced as a new workspace beside the current codebase, not as an in-place mutation of the existing source tree.
 
 Proposed high-level layout:
 
@@ -210,13 +212,13 @@ Use ElizaOS where it helps with:
 
 Do **not** let ElizaOS redefine the SWEagent compatibility target.
 
-For this rewrite:
+For this Rust implementation:
 
-- the TS repo remains the current behavior source of truth
+- the current repository remains the behavior source of truth
 - ElizaOS should stay behind a narrow integration boundary
 - the core run/tool/env/trajectory contracts should remain owned by Forge crates
 
-If ElizaOS APIs change, the rewrite should not collapse because the contract surface is preserved in Forge itself.
+If ElizaOS APIs change, the implementation should not collapse because the contract surface is preserved in Forge itself.
 
 ---
 
@@ -263,12 +265,12 @@ Recommended order:
 
 ### 9.1 Trajectory compatibility
 
-The Rust rewrite must handle trajectory compatibility explicitly.
+The Rust implementation must handle trajectory compatibility explicitly.
 
 Requirements:
 
-- read legacy files using either camelCase or snake_case where current TS readers/consumers effectively require tolerance
-- base the canonical write format on the actual TS ecosystem of readers/consumers, not on assumptions
+- read legacy files using either camelCase or snake_case where current readers/consumers effectively require tolerance
+- base the canonical write format on the actual ecosystem of readers/consumers, not on assumptions
 - ensure replay, stats, inspector, and downstream tools continue to work on rewritten outputs
 
 ### 9.2 Tool and marker compatibility
@@ -305,8 +307,8 @@ Before using live model providers, verify parity with deterministic paths:
 ### Risks
 
 - Docker/bash session fidelity is easy to get subtly wrong
-- TS trajectory and stats naming is inconsistent
-- incomplete TS areas can mislead implementation if treated as complete
+- trajectory and stats naming is inconsistent in current outputs
+- incomplete areas can mislead implementation if treated as complete
 - README/docs currently overstate some areas relative to implementation
 
 ### Open questions
@@ -319,10 +321,10 @@ Before using live model providers, verify parity with deterministic paths:
 
 ## 11. What Is Not Ported Verbatim
 
-- internal TS class names
-- TS file layout
+- internal legacy class names
+- legacy file layout
 - prompt/template text unless explicitly needed
-- incomplete TS behavior as a goal in itself
+- incomplete legacy behavior as a goal in itself
 - line-by-line source translation
 
 The target is behavioral parity with a clean Rust implementation, not source resemblance.
