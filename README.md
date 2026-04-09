@@ -16,8 +16,8 @@ It integrates with [ElizaOS](https://elizaos.com) as a first-class action handle
 ```yaml
 # issue25.yaml
 agent:
-  model_name: models/gemini-2.0-flash-001
-  base_url: https://generativelanguage.googleapis.com/v1beta/openai
+  model_name: "<add your model name>"
+  base_url: <add your base url>"
   api_key: $FORGE_API_KEY          # never hard-code keys — read from env
   max_steps: 25
   parser_type: thought_action
