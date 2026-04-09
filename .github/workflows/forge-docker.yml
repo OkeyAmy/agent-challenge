@@ -4,10 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "forge/**"
-      - ".github/workflows/forge-docker.yml"
-  workflow_dispatch:   # allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/forge
@@ -35,14 +32,13 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            forge/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('forge/Cargo.lock') }}
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
       # ── 4. Build the forge binary ──────────────────────────────────
       - name: Build forge (release)
-        working-directory: forge
         run: cargo build --release -p forge
 
       # ── 5. Set up Docker Buildx ────────────────────────────────────
@@ -56,22 +52,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ── 7. Build sandbox image (python:3.11-slim + git) ───────────
+      # ── 7. Build sandbox base image (python:3.11-slim + git) ───────
       - name: Build forge-sandbox base image
-        working-directory: forge
         run: docker build -f Dockerfile.sandbox -t forge-sandbox:latest .
 
       # ── 8. Copy binary into build context ─────────────────────────
       - name: Prepare binary for Docker context
-        working-directory: forge
         run: cp target/release/forge forge_bin
 
       # ── 9. Build & push forge image ───────────────────────────────
       - name: Build and push forge image
         uses: docker/build-push-action@v5
         with:
-          context: forge
-          file: forge/Dockerfile.release
+          context: .
+          file: Dockerfile.release
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
@@ -81,14 +75,13 @@ jobs:
 
       # ── 10. Cleanup binary from context ───────────────────────────
       - name: Cleanup forge_bin
-        working-directory: forge
         run: rm -f forge_bin
 
-      # ── 11. Print image digest ─────────────────────────────────────
+      # ── 11. Summary ────────────────────────────────────────────────
       - name: Summary
         run: |
           echo "### Docker image pushed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Image:** \`${{ env.IMAGE_NAME }}:latest\`" >> $GITHUB_STEP_SUMMARY
           echo "- **SHA tag:** \`${{ env.IMAGE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Nosana job def:** \`forge/nos_job_def/forge_job_definition.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Nosana job def:** \`nos_job_def/forge_job_definition.json\`" >> $GITHUB_STEP_SUMMARY
