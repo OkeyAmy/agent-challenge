@@ -23,7 +23,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.82"
+          toolchain: "stable"
 
       # ── 3. Cache Cargo registry + build artefacts ─────────────────
       - name: Cache Cargo
